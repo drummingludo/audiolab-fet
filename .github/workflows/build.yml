@@ -1,0 +1,128 @@
+name: Fabrication Mac et Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    name: Mac (VST3 + AU + AAX, Apple Silicon et Intel)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compiler
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --target AudioLabFET_VST3 AudioLabFET_AU AudioLabFET_AAX -j 4
+
+      - name: Signer (signature locale, sans compte Apple)
+        run: |
+          A=build/AudioLabFET_artefacts/Release
+          codesign --force --deep --sign - "$A/VST3/Audio Lab FET.vst3"
+          codesign --force --deep --sign - "$A/AU/Audio Lab FET.component"
+          codesign --force --deep --sign - "$A/AAX/Audio Lab FET.aaxplugin"
+          lipo -info "$A/VST3/Audio Lab FET.vst3/Contents/MacOS/Audio Lab FET"
+
+      - name: Vérifier l'AAX (structure, architectures, point d'entrée)
+        run: |
+          X="build/AudioLabFET_artefacts/Release/AAX/Audio Lab FET.aaxplugin"
+          B="$X/Contents/MacOS/Audio Lab FET"
+          test -f "$B"
+          lipo "$B" -verify_arch arm64 x86_64
+          plutil -p "$X/Contents/Info.plist" | grep -E "CFBundleIdentifier|CFBundleName|CFBundleShortVersionString"
+          if nm -gU "$B" | grep -q ACFRegisterPlugin; then echo "Point d'entrée AAX exporté"; else echo "Point d'entrée AAX introuvable"; exit 1; fi
+          codesign --verify --deep --strict "$X" && echo "Signature locale valide (signature PACE à ajouter avant diffusion)"
+
+      - name: Valider (auval + pluginval)
+        run: |
+          A=build/AudioLabFET_artefacts/Release
+          mkdir -p ~/Library/Audio/Plug-Ins/Components ~/Library/Audio/Plug-Ins/VST3
+          cp -R "$A/AU/Audio Lab FET.component" ~/Library/Audio/Plug-Ins/Components/
+          cp -R "$A/VST3/Audio Lab FET.vst3" ~/Library/Audio/Plug-Ins/VST3/
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -v aufx AlFt Trsv
+          curl -sSL -o pv.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pv.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --validate-in-process --skip-gui-tests --validate ~/Library/Audio/Plug-Ins/VST3/"Audio Lab FET.vst3"
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --validate-in-process --skip-gui-tests --validate ~/Library/Audio/Plug-Ins/Components/"Audio Lab FET.component"
+
+      - name: Préparer le paquet Mac
+        run: |
+          A=build/AudioLabFET_artefacts/Release
+          P="Audio Lab FET - Mac"
+          mkdir -p "$P"
+          cp -R "$A/VST3/Audio Lab FET.vst3" "$A/AU/Audio Lab FET.component" "$P/"
+          mkdir -p "$P/Pro Tools (AAX non signé)"
+          cp -R "$A/AAX/Audio Lab FET.aaxplugin" "$P/Pro Tools (AAX non signé)/"
+          cp packaging/mac/Installer.command packaging/mac/LISEZ-MOI.txt "$P/"
+          chmod +x "$P/Installer.command"
+          ditto -c -k --sequesterRsrc --keepParent "$P" AudioLabFET-Mac.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AudioLabFET-Mac
+          path: AudioLabFET-Mac.zip
+
+  windows:
+    name: Windows (VST3 + AAX)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compiler
+        run: |
+          cmake -B build -A x64
+          cmake --build build --config Release --target AudioLabFET_VST3 AudioLabFET_AAX
+
+      - name: Valider (pluginval)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pv.zip
+          Expand-Archive pv.zip -DestinationPath pv
+          .\pv\pluginval.exe --strictness-level 10 --validate-in-process --skip-gui-tests --validate "build\AudioLabFET_artefacts\Release\VST3\Audio Lab FET.vst3"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Préparer le paquet Windows
+        shell: pwsh
+        run: |
+          $P = "Audio Lab FET - Windows"
+          New-Item -ItemType Directory -Force -Path $P | Out-Null
+          Copy-Item -Recurse "build\AudioLabFET_artefacts\Release\VST3\Audio Lab FET.vst3" $P
+          New-Item -ItemType Directory -Force -Path "$P\Pro Tools (AAX non signe)" | Out-Null
+          Copy-Item -Recurse "build\AudioLabFET_artefacts\Release\AAX\Audio Lab FET.aaxplugin" "$P\Pro Tools (AAX non signe)"
+          Copy-Item packaging\windows\LISEZ-MOI.txt $P
+          Compress-Archive -Path $P -DestinationPath AudioLabFET-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AudioLabFET-Windows
+          path: AudioLabFET-Windows.zip
+
+  publier:
+    name: Publier la version
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Audio Lab FET ${{ github.ref_name }}
+          files: |
+            AudioLabFET-Mac.zip
+            AudioLabFET-Windows.zip
+          body: |
+            Compresseur FET d'Audio Lab (Transversal Studio).
+            - Mac : VST3 + AU, Apple Silicon et Intel (AudioLabFET-Mac.zip)
+            - Windows : VST3 64 bits (AudioLabFET-Windows.zip)
+            - Pro Tools : AAX non signé dans chaque archive (Pro Tools Developer uniquement, en attendant la signature PACE)
+            Mode d'emploi dans le fichier LISEZ-MOI de chaque archive.

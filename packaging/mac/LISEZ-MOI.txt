@@ -1,0 +1,29 @@
+AUDIO LAB FET — Mac (Apple Silicon et Intel)
+Transversal Studio · Audio Lab « Chimiste du son »
+
+INSTALLATION
+1. Double-cliquez sur « Installer.command ».
+   Si macOS refuse de l'ouvrir (« développeur non identifié ») :
+   - clic droit sur Installer.command > Ouvrir > Ouvrir ;
+   - ou, sur macOS 15 et plus récent : Réglages Système > Confidentialité et sécurité,
+     tout en bas, bouton « Ouvrir quand même ».
+2. Relancez votre logiciel de musique.
+
+Le plugin apparaît sous le nom « Audio Lab FET » (fabricant : Transversal Studio) :
+- Logic Pro, GarageBand : format AU (Audio Units > Transversal Studio)
+- Ableton Live, FL Studio, Cubase, Reaper, Studio One, Bitwig : format VST3
+
+INSTALLATION MANUELLE (sans le script)
+- Audio Lab FET.vst3      → ~/Library/Audio/Plug-Ins/VST3/
+- Audio Lab FET.component → ~/Library/Audio/Plug-Ins/Components/
+
+PRO TOOLS (format AAX) — VERSION DE TEST
+Le dossier « Pro Tools (AAX non signé) » contient Audio Lab FET.aaxplugin.
+Il n'a pas encore la signature numérique PACE exigée par Pro Tools : il se charge
+uniquement dans Pro Tools Developer (version de test réservée aux développeurs Avid).
+- Pro Tools Developer : créez un dossier nommé « Plug-Ins » à côté de l'application
+  Pro Tools Developer et copiez-y Audio Lab FET.aaxplugin, puis lancez-la.
+- Dans Pro Tools, le plugin se trouve dans la catégorie Dynamics (fabricant : Transversal Studio).
+- Pro Tools « normal » refusera ce fichier tant qu'il n'est pas signé.
+
+Code source et licence (AGPLv3) : https://github.com/drummingludo/audiolab-fet
