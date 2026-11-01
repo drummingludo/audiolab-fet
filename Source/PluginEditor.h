@@ -3,8 +3,7 @@
 #include "Widgets.h"
 #include "VuMeter.h"
 
-class AudioLabFETEditor : public juce::AudioProcessorEditor,
-                          private juce::DarkModeSettingListener
+class AudioLabFETEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit AudioLabFETEditor (AudioLabFETProcessor&);
@@ -13,7 +12,7 @@ public:
     void paint (juce::Graphics&) override {}
     void resized() override;
 
-    // Grille de 24 px (docs/06_GUI_Plugin_Compresseur.md) :
+    // Charte V2 (fiche 02) et docs/09, grille de 24 px :
     // Input | Output | Attack / Release | Ratio | VU | Meter (petit Mix sous Meter, en bas à droite)
     static constexpr int baseW = 879, baseH = 272;
 
@@ -27,9 +26,7 @@ private:
         AudioLabFETEditor& ed;
     };
 
-    void applyTheme();
     void refreshState();
-    void darkModeSettingChanged() override { applyTheme(); }
 
     AudioLabFETProcessor& proc;
     audiolab::Theme theme;
@@ -42,7 +39,6 @@ private:
     audiolab::SegButtons ratioSeg { theme, { "20", "12", "8", "4", "All" } };
     audiolab::SegButtons meterSeg { theme, { "GR", "+8", "+4", "OFF" } };
     std::unique_ptr<juce::ParameterAttachment> bypassAtt;
-    juce::Array<juce::Component*> body;
     bool bypassed = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioLabFETEditor)

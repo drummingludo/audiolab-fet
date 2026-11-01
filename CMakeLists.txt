@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "")
 
-project(AudioLabFET VERSION 1.0.0 LANGUAGES C CXX)
+project(AudioLabFET VERSION 1.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -38,7 +38,7 @@ endif()
 juce_add_plugin(AudioLabFET
     PRODUCT_NAME "Audio Lab FET"
     PLUGIN_NAME "Audio Lab FET"
-    DESCRIPTION "Compresseur FET d'Audio Lab (Chimiste du son), type 1176"
+    DESCRIPTION "Compresseur FET d'Audio Lab (Chimiste du son)"
     COMPANY_NAME "Transversal Studio"
     COMPANY_WEBSITE "https://transversalstudio.fr"
     COMPANY_EMAIL "ludo@transversalstudio.fr"
@@ -57,9 +57,10 @@ juce_add_plugin(AudioLabFET
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
 juce_add_binary_data(ALFData SOURCES
-    Resources/Inter-Regular.ttf
-    Resources/Inter-SemiBold.ttf
-    Resources/Inter-Bold.ttf)
+    Resources/Poppins-Regular.ttf
+    Resources/Poppins-Medium.ttf
+    Resources/Poppins-SemiBold.ttf
+    Resources/Poppins-Bold.ttf)
 
 target_sources(AudioLabFET PRIVATE
     Source/PluginProcessor.cpp

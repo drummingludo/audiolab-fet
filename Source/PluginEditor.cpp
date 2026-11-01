@@ -23,24 +23,25 @@ AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
     addAndMakeVisible (content);
     auto& ap = proc.apvts;
     auto prm = [&] (const char* id) -> juce::RangedAudioParameter& { return *ap.getParameter (id); };
-    auto acc = [] (const Pal& q) { return q.accent; };
-    auto ora = [] (const Pal& q) { return q.orange; };
     auto db1 = [] (float v) { return (v > 0 ? "+" : "") + String (v, 1); };
+    // graduation de l'original (1 à 7) en gros, valeur réelle dessous (charte : « 7 · 50 ms »)
+    auto posFmt = [] (float v) { const float r = std::round (v); return std::abs (v - r) < 0.05f ? String ((int) r) : String (v, 1); };
 
-    kIn  = std::make_unique<ArcKnob> (theme, prm (params::input), "Input", "dB", acc, ArcKnob::Size::md, db1, -20.0f, U (helpIn));
-    kOut = std::make_unique<ArcKnob> (theme, prm (params::output), "Output", "dB", acc, ArcKnob::Size::md, db1, -30.0f, U (helpOut));
-    kAtk = std::make_unique<ArcKnob> (theme, prm (params::attack), "Attack", "ms", ora, ArcKnob::Size::sm,
-                                      [] (float v) { return params::atkValue (v); }, 1.0f, U (helpAtk));
-    kAtk->unitFn = [] (float v) { return params::atkUnit (v); };
-    kRel = std::make_unique<ArcKnob> (theme, prm (params::release), "Release", "ms", ora, ArcKnob::Size::sm,
-                                      [] (float v) { return params::relValue (v); }, 1.0f, U (helpRel));
-    kMix = std::make_unique<ArcKnob> (theme, prm (params::mix), "Mix", "%", acc, ArcKnob::Size::xs,
+    // couleurs de la charte : Input (niveau qui attaque le seuil fixe) = teal, Output et Mix (gains) = teal secondaire,
+    // Attack / Release (temps) = orange ; gains : l'arc part de 0 dB
+    kIn  = std::make_unique<ArcKnob> (theme, prm (params::input), "Input", "dB", Family::teal, ArcKnob::Size::md, db1, 0.0f, U (helpIn));
+    kOut = std::make_unique<ArcKnob> (theme, prm (params::output), "Output", "dB", Family::teal2, ArcKnob::Size::md, db1, 0.0f, U (helpOut));
+    kAtk = std::make_unique<ArcKnob> (theme, prm (params::attack), "Attack", "", Family::orange, ArcKnob::Size::sm, posFmt, 1.0f, U (helpAtk));
+    kAtk->subFn = [] (float v) { return params::atkValue (v) + " " + params::atkUnit (v); };
+    kRel = std::make_unique<ArcKnob> (theme, prm (params::release), "Release", "", Family::orange, ArcKnob::Size::sm, posFmt, 1.0f, U (helpRel));
+    kRel->subFn = [] (float v) { return params::relValue (v) + " ms"; };
+    kMix = std::make_unique<ArcKnob> (theme, prm (params::mix), "Mix", "%", Family::teal2, ArcKnob::Size::xs,
         [] (float v) { return String (juce::roundToInt (v)); }, 0.0f, U (helpMix));
 
-    ratioSeg.vertical = true; ratioSeg.gap = 2; ratioSeg.fontSize = 13;
+    ratioSeg.vertical = true;
     ratioSeg.attach (prm (params::ratio));
     ratioSeg.setTooltip (U (helpRat));
-    meterSeg.vertical = true; meterSeg.gap = 2; meterSeg.fontSize = 13;
+    meterSeg.vertical = true;
     meterSeg.setTooltip (U (helpMtr));
     // Boutons de haut en bas : GR, +8, +4, OFF ; modes du VU : 0 = GR, 1 = +4 (−18 dBFS), 2 = +8 (−14 dBFS), 3 = éteint
     vu.setModes ({ -18.0f, -14.0f }, { "OUTPUT  +4", "OUTPUT  +8" }, true);
@@ -54,11 +55,8 @@ AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
         bypassed = v > 0.5f; refreshState(); }, nullptr);
     bypassAtt->sendInitialUpdate();
 
-    body = { kIn.get(), kOut.get(), kAtk.get(), kRel.get(), kMix.get(), &vu, &ratioSeg, &meterSeg };
-    for (auto* c : body) content.addAndMakeVisible (c);
-    juce::Desktop::getInstance().addDarkModeSettingListener (this);
-
-    applyTheme();
+    for (auto* c : std::initializer_list<juce::Component*> { kIn.get(), kOut.get(), kAtk.get(), kRel.get(), kMix.get(), &vu, &ratioSeg, &meterSeg })
+        content.addAndMakeVisible (c);
     const double sc = juce::jlimit (0.6, 2.0, (double) proc.ui.getProperty ("scale", 1.0));   // lu avant les limites
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio ((double) baseW / baseH);
@@ -69,27 +67,14 @@ AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
 
 AudioLabFETEditor::~AudioLabFETEditor()
 {
-    juce::Desktop::getInstance().removeDarkModeSettingListener (this);
     tooltips.setLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
 }
 
-void AudioLabFETEditor::applyTheme()
-{
-    const String t = proc.ui.getProperty ("themeOverride", "auto").toString();
-    const bool dark = t == "dark" || (t != "light" && juce::Desktop::getInstance().isDarkModeActive());
-    theme.setDark (dark);
-    lnf.refresh();
-    sendLookAndFeelChange();
-    content.repaint();
-    for (auto* c : content.getChildren()) c->repaint();
-}
-
 void AudioLabFETEditor::refreshState()
 {
-    for (auto* c : body) { c->setAlpha (bypassed ? 0.35f : 1.0f); c->setEnabled (! bypassed); }
-    meterSeg.setEnabled (true); meterSeg.setAlpha (1.0f);
-    content.repaint();
+    // Charte V2 : en bypass, la lampe du VU s'éteint ; les réglages restent accessibles
+    vu.setLampOff (bypassed);
 }
 
 void AudioLabFETEditor::resized()
@@ -106,15 +91,14 @@ static constexpr float arX = 313.5f, atkY = 87.0f, relY = 169.0f;
 void AudioLabFETEditor::Content::paint (juce::Graphics& g)
 {
     const auto& p = ed.theme.pal();
-    g.fillAll (p.bg2);
-    const float a = ed.bypassed ? 0.35f : 1.0f;
-    g.setColour (p.text.withMultipliedAlpha (a)); g.setFont (ed.theme.ui (11, 600, 0.06f));
+    g.fillAll (p.bg);
+    g.setColour (p.text); g.setFont (ed.theme.ui (11, 600, 0.06f));
     auto label = [&] (const char* t, float cx, float y) { g.drawText (t, juce::Rectangle<float> (cx - 50, y, 100, 14), juce::Justification::centred, false); };
     label ("ATTACK", arX, atkY - 35 - 20);
     label ("RELEASE", arX, relY + 35 + 6);
     label ("RATIO", 399, 24);
-    g.setColour (p.text); label ("METER", 829, 24);
-    g.setColour (p.muted.withMultipliedAlpha (a)); g.setFont (ed.theme.ui (11));
+    label ("METER", 829, 24);
+    g.setColour (p.text2); g.setFont (ed.theme.ui (11));
     g.drawText (U ("7 = le plus rapide"), juce::Rectangle<float> (arX - 60, relY + 35 + 22, 120, 14), juce::Justification::centred, false);
 }
 

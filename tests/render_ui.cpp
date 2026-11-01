@@ -50,19 +50,18 @@ int main (int argc, char** argv)
         ed.reset (proc->createEditorAndMakeActive()); ed->setVisible (true);
     };
     auto set = [&] (const char* id, float v) { auto* p = proc->apvts.getParameter (id); p->setValueNotifyingHost (p->convertTo0to1 (v)); };
-    auto theme = [&] (const char* t) { proc->ui.setProperty ("themeOverride", t, nullptr); };
     auto meter = [&] (int m) { proc->ui.setProperty ("meter", m, nullptr); };
 
     using namespace audiolab;
-    steps.push_back ({ 0,    [&] { theme ("light"); meter (0); set (params::input, 12); set (params::output, -6); rebuild(); } });
-    steps.push_back ({ 2000, [&] { shot ("01_clair_GR"); meter (2); set (params::attack, 1); set (params::release, 7); rebuild(); } });
-    steps.push_back ({ 1500, [&] { shot ("02_clair_sortie_plus8_atk1_rel7"); theme ("dark"); meter (0); set (params::ratio, 4); set (params::attack, 7); set (params::input, 24); set (params::mix, 50); rebuild(); } });
-    steps.push_back ({ 2000, [&] { shot ("03_sombre_allbuttons_mix50"); meter (3); rebuild(); } });
-    steps.push_back ({ 1500, [&] { shot ("04_sombre_meter_off"); set (params::bypass, 1); rebuild(); } });
-    steps.push_back ({ 800,  [&] { shot ("05_sombre_bypass"); set (params::bypass, 0); theme ("light"); meter (1); rebuild();
+    steps.push_back ({ 0,    [&] { meter (0); set (params::input, 12); set (params::output, -6); rebuild(); } });
+    steps.push_back ({ 2000, [&] { shot ("01_GR"); meter (2); set (params::attack, 1); set (params::release, 7); rebuild(); } });
+    steps.push_back ({ 1500, [&] { shot ("02_sortie_plus8_atk1_rel7"); meter (0); set (params::ratio, 4); set (params::attack, 7); set (params::input, 24); set (params::mix, 50); rebuild(); } });
+    steps.push_back ({ 2000, [&] { shot ("03_allbuttons_mix50"); meter (3); rebuild(); } });
+    steps.push_back ({ 1500, [&] { shot ("04_meter_off"); set (params::bypass, 1); rebuild(); } });
+    steps.push_back ({ 800,  [&] { shot ("05_bypass"); set (params::bypass, 0); meter (1); rebuild();
                                    ed->setSize (AudioLabFETEditor::baseW * 6 / 10, AudioLabFETEditor::baseH * 6 / 10); } });
-    steps.push_back ({ 1000, [&] { shot ("06_clair_60pc_plus4"); ed->setSize (AudioLabFETEditor::baseW * 2, AudioLabFETEditor::baseH * 2); } });
-    steps.push_back ({ 1000, [&] { shot ("07_clair_200pc"); juce::MessageManager::getInstance()->stopDispatchLoop(); } });
+    steps.push_back ({ 1000, [&] { shot ("06_60pc_plus4"); ed->setSize (AudioLabFETEditor::baseW * 2, AudioLabFETEditor::baseH * 2); } });
+    steps.push_back ({ 1000, [&] { shot ("07_200pc"); juce::MessageManager::getInstance()->stopDispatchLoop(); } });
 
     std::function<void (size_t)> next = [&] (size_t i)
     {
