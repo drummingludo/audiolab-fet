@@ -10,7 +10,7 @@ familles de couleurs teal / orange, cadran VU clair rétroéclairé. Cette fiche
 | Dépôt GitHub | drummingludo/audiolab-opto | drummingludo/audiolab-fet |
 | Code plugin (AU) | `aufx AlOp Trsv` | `aufx AlFt Trsv` |
 | Identifiant | fr.transversalstudio.audiolab.opto | fr.transversalstudio.audiolab.fet |
-| Taille de base | 634 × 316 px | 879 × 272 px |
+| Taille de base | 574 × 292 px | 819 × 248 px |
 
 Noms : « LA-2A » et « 1176 » sont des marques d'Universal Audio, d'où « Opto » et « FET » ; la charte interdit les noms de marques matérielles dans les plugins (description affichée par le logiciel hôte : « Compresseur optique / FET d'Audio Lab »).
 
@@ -24,7 +24,7 @@ Noms : « LA-2A » et « 1176 » sont des marques d'Universal Audio, d'où « Op
 
 ## 2. VU-mètre (commun, charte 02 § 7)
 
-- Écran « Surface » #2A2B29 (bord #3E3F3D, coins 10) ; cadran encastré 14 px à l'intérieur (coins 8, ombre intérieure 4 px vers le bas, flou 5,5, 50 %).
+- **Écran 270 × 200** (réduit le 01/11 à la demande de Ludovic ; avant 330 × 224), « Surface » #2A2B29, bord #3E3F3D, coins 10 ; cadran encastré 14 px à l'intérieur, 242 × 172 comme sur le Compresseur (coins 8, ombre intérieure 4 px vers le bas, flou 5,5, 50 %).
 - Cadran clair #F9F9FB rétroéclairé : halo de lampe ambre #EAA93D sous le pivot (34 % → 12 % → 0), **éteint en bypass** ; bords assombris (0 → 9 %) ; reflet de verre diagonal (blanc 85 % → 18 %, coupé net) qui ne touche pas les chiffres.
 - Échelle −20 … +3 VU du SVG d'Audio Lab (repère 330 × 200, placé en haut du cadran, pivot visible) : grandes graduations #1D1E1C, petites #969697, chiffres #686868, zone 0 à +3 rouge #9B2226 ; « VU » 700, fonction 600 (#686868).
 - Aiguille #1D1E1C de 1,6 px à l'écran avec ombre portée (28 %), pivot en relief (#4A4B49 → #1D1E1C).
@@ -34,20 +34,20 @@ Noms : « LA-2A » et « 1176 » sont des marques d'Universal Audio, d'où « Op
 - Mode OFF (FET seulement) : aiguille au repos à gauche.
 - Le mode choisi est enregistré avec la session.
 
-## 3. Audio Lab Opto — 634 × 316
+## 3. Audio Lab Opto — 574 × 292
 
-- Rangée principale (y 24 → 248) : Gain (potentiomètre principal, 4, 62, 143 × 150, sous-titre « rattrapage de sortie », **teal secondaire #79AFB0**, arc depuis 0 dB) · VU (152, 24, 330 × 224) · Peak Reduction (486, 62, 143 × 150, unité %, sous-titre « seuil + ratio couplés », **dégradé teal #0A9396 → #79AFB0** depuis 0).
-- Rangée du bas (y 264, hauteur 28) : sélecteur VU « GR / +4 / +10 » à gauche (x 24) ; « Compress / Limit » centré sous le VU ; petit Mix (28 px, teal secondaire) aligné à droite (x 610).
+- Rangée principale (y 24 → 224) : Gain (potentiomètre principal, 4, 68, 143 × 150, sous-titre « rattrapage de sortie », **teal secondaire #79AFB0**, arc depuis 0 dB) · VU (152, 24, 270 × 200) · Peak Reduction (427, 68, 143 × 150, unité %, sous-titre « seuil + ratio couplés », **dégradé teal #0A9396 → #79AFB0** depuis 0).
+- Rangée du bas (y 240, hauteur 28) : sélecteur VU « GR / +4 / +10 » à gauche (x 24) ; « Compress / Limit » centré sous le VU ; petit Mix (28 px, teal secondaire) aligné à droite (x 550).
 - Paramètres : Gain −20 → +30 dB (0), Peak Reduction 0 → 100 (40), Mode Compress / Limit, Dry/Wet 0 → 100 % (100), Bypass.
 
-## 4. Audio Lab FET — 879 × 272
+## 4. Audio Lab FET — 819 × 248
 
-- Colonnes de gauche à droite, toutes entre y 24 et y 248 :
-  - Input (4, 70, 143 × 130), **dégradé teal** (niveau qui attaque le seuil fixe), arc depuis 0 dB ; Output (131, 70, 143 × 130), **teal secondaire**, arc depuis 0 dB (gains : l'arc part du point neutre).
-  - Colonne Attack / Release centrée en x 313,5 : titre ATTACK, potentiomètre moyen **orange (dégradé #BB3E03 → #EAA93D)**, Ø 76, capuchon 50, centré y 87 ; second centré y 169 ; titre RELEASE puis « 7 = le plus rapide ». Au centre, la graduation de l'original en gros (« 7 ») et la valeur réelle dessous (« 50 ms », « 20 µs »), comme le demande la charte (« 7 · 50 ms »).
-  - RATIO : sélecteur vertical 20 / 12 / 8 / 4 / All (373, 46, 52 × 202).
-  - VU (449, 24, 330 × 224).
-  - METER : sélecteur vertical GR / +8 / +4 / OFF (803, 46, 52 de large, même hauteur de segment que Ratio), puis petit Mix (teal secondaire) aligné à droite en x 855, y 220 (bas aligné sur le VU).
+- Colonnes de gauche à droite, toutes entre y 24 et y 224 :
+  - Input (4, 68, 143 × 130), **dégradé teal** (niveau qui attaque le seuil fixe), arc depuis 0 dB ; Output (131, 68, 143 × 130), **teal secondaire**, arc depuis 0 dB (gains : l'arc part du point neutre).
+  - Colonne Attack / Release centrée en x 313,5 : titre ATTACK, potentiomètre moyen **orange (dégradé #BB3E03 → #EAA93D)**, Ø 76, capuchon 50, centré y 79 ; second centré y 153 ; titre RELEASE puis « 7 = le plus rapide ». Au centre, la graduation de l'original en gros (« 7 ») et la valeur réelle dessous (« 50 ms », « 20 µs »), comme le demande la charte (« 7 · 50 ms »).
+  - RATIO : sélecteur vertical 20 / 12 / 8 / 4 / All (373, 46, 52 × 178).
+  - VU (449, 24, 270 × 200).
+  - METER : sélecteur vertical GR / +8 / +4 / OFF (743, 46, 52 de large, même hauteur de segment que Ratio), puis petit Mix (teal secondaire) aligné à droite en x 795, y 196 (bas aligné sur le VU).
 - Paramètres : Input −20 → +30 dB (0), Output −30 → +20 dB (0), Attack 1 → 7 (4), Release 1 → 7 (4), Ratio 20 / 12 / 8 / 4 / All (4), Dry/Wet 0 → 100 % (100), Bypass.
 
 ## 5. Comportements communs

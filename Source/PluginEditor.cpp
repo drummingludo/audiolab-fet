@@ -85,8 +85,8 @@ void AudioLabFETEditor::resized()
     proc.ui.setProperty ("scale", (double) s, nullptr);
 }
 
-// Colonnes (centres) : Input 75,5 · Output 202,5 · Attack/Release 313,5 · Ratio 373–425 · VU 449–779 · Meter 803–855
-static constexpr float arX = 313.5f, atkY = 87.0f, relY = 169.0f;
+// Colonnes (centres) : Input 75,5 · Output 202,5 · Attack/Release 313,5 · Ratio 373–425 · VU 449–719 · Meter 743–795
+static constexpr float arX = 313.5f, atkY = 79.0f, relY = 153.0f;
 
 void AudioLabFETEditor::Content::paint (juce::Graphics& g)
 {
@@ -97,7 +97,7 @@ void AudioLabFETEditor::Content::paint (juce::Graphics& g)
     label ("ATTACK", arX, atkY - 35 - 20);
     label ("RELEASE", arX, relY + 35 + 6);
     label ("RATIO", 399, 24);
-    label ("METER", 829, 24);
+    label ("METER", 769, 24);
     g.setColour (p.text2); g.setFont (ed.theme.ui (11));
     g.drawText (U ("7 = le plus rapide"), juce::Rectangle<float> (arX - 60, relY + 35 + 22, 120, 14), juce::Justification::centred, false);
 }
@@ -105,16 +105,16 @@ void AudioLabFETEditor::Content::paint (juce::Graphics& g)
 void AudioLabFETEditor::Content::resized()
 {
     auto& e = ed;
-    // Rangée principale (y 24 → 248)
-    e.kIn->setBounds (4, 70, 143, 130);
-    e.kOut->setBounds (131, 70, 143, 130);
+    // Rangée principale (y 24 → 224) ; potentiomètres centrés sur le VU (y 124)
+    e.kIn->setBounds (4, 68, 143, 130);
+    e.kOut->setBounds (131, 68, 143, 130);
     e.kAtk->setBounds (juce::roundToInt (arX - 38), juce::roundToInt (atkY - 38), 76, 76);
     e.kRel->setBounds (juce::roundToInt (arX - 38), juce::roundToInt (relY - 38), 76, 76);
-    e.ratioSeg.setBounds (373, 46, 52, 202);
-    e.vu.setBounds (449, 24, 330, 224);
-    const float bh = (202.0f - 6 - 4 * 2) / 5;                     // même hauteur de bouton que Ratio
-    e.meterSeg.setBounds (803, 46, 52, juce::roundToInt (6 + 4 * bh + 3 * 2));
+    e.ratioSeg.setBounds (373, 46, 52, 178);
+    e.vu.setBounds (449, 24, 270, 200);
+    const float bh = (178.0f - 6 - 4 * 2) / 5;                     // même hauteur de segment que Ratio
+    e.meterSeg.setBounds (743, 46, 52, juce::roundToInt (6 + 4 * bh + 3 * 2));
     // Petit Mix en bas à droite, sous Meter, aligné sur le bas du VU
     const int kw = juce::roundToInt (e.kMix->idealWidth());
-    e.kMix->setBounds (855 - kw, 220, kw, 28);
+    e.kMix->setBounds (795 - kw, 196, kw, 28);
 }

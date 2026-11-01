@@ -14,7 +14,7 @@ public:
 
     // Charte V2 (fiche 02) et docs/09, grille de 24 px :
     // Input | Output | Attack / Release | Ratio | VU | Meter (petit Mix sous Meter, en bas à droite)
-    static constexpr int baseW = 879, baseH = 272;
+    static constexpr int baseW = 819, baseH = 248;
 
 private:
     class Content : public juce::Component
