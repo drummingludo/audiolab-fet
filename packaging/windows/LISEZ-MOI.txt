@@ -7,7 +7,7 @@ INSTALLATION
    (Windows demande une autorisation administrateur : acceptez.)
 2. Relancez votre logiciel de musique et lancez une recherche de plugins si besoin.
 
-Le plugin apparait sous le nom "Audio Lab FET" (fabricant : Transversal Studio)
+Le plugin apparait sous le nom "Lab FET" (fabricant : Transversal Studio)
 dans Ableton Live, FL Studio, Cubase, Reaper, Studio One, Bitwig...
 
 PRO TOOLS (format AAX) - VERSION DE TEST

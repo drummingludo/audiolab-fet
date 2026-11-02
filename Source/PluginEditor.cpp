@@ -5,14 +5,14 @@ using juce::String;
 
 static String U (const char* s) { return String::fromUTF8 (s); }
 
-static const char* helpIn   = "Input : le seuil est fixe, c'est en poussant l'entrée qu'on compresse davantage.";
-static const char* helpOut  = "Output : rattrapage du niveau après compression. Comparez à niveau égal (bypass).";
-static const char* helpAtk  = "Attaque de 800 µs (1) à 20 µs (7). Très rapide : le FET attrape les transitoires.";
-static const char* helpRel  = "Relâchement de 1,1 s (1) à 50 ms (7), un peu plus lent quand la réduction est forte.";
-static const char* helpRat  = "Ratio 4, 8, 12 ou 20:1. « All » : les 4 boutons enfoncés — ratio extrême, distorsion, pompage.";
-static const char* helpMtr  = "Ce que montre l'aiguille : GR = réduction de gain ; +8 / +4 = niveau de sortie "
-                              "(0 VU = −14 / −18 dBFS) ; OFF = aiguille au repos.";
-static const char* helpMix  = "Dry/Wet : mélange le son traité avec le son direct (compression parallèle).";
+static const char* helpIn   = "Input: the threshold is fixed, so pushing the input harder gives more compression.";
+static const char* helpOut  = "Output: level make-up after compression. Compare at equal loudness (bypass).";
+static const char* helpAtk  = "Attack from 800 µs (1) to 20 µs (7). Very fast: the FET catches the transients.";
+static const char* helpRel  = "Release from 1.1 s (1) to 50 ms (7), a little slower when the reduction is heavy.";
+static const char* helpRat  = "Ratio 4, 8, 12 or 20:1. \"All\": all 4 buttons pressed in, extreme ratio, distortion, pumping.";
+static const char* helpMtr  = "What the needle shows: GR = gain reduction; +8 / +4 = output level "
+                              "(0 VU = −14 / −18 dBFS); OFF = needle at rest.";
+static const char* helpMix  = "Dry/Wet: blends the processed sound with the direct sound (parallel compression).";
 
 AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
     : AudioProcessorEditor (&p), proc (p),
@@ -99,7 +99,7 @@ void AudioLabFETEditor::Content::paint (juce::Graphics& g)
     label ("RATIO", 399, 24);
     label ("METER", 769, 24);
     g.setColour (p.text2); g.setFont (ed.theme.ui (11));
-    g.drawText (U ("7 = le plus rapide"), juce::Rectangle<float> (arX - 60, relY + 35 + 22, 120, 14), juce::Justification::centred, false);
+    g.drawText (U ("7 = fastest"), juce::Rectangle<float> (arX - 60, relY + 35 + 22, 120, 14), juce::Justification::centred, false);
 }
 
 void AudioLabFETEditor::Content::resized()
