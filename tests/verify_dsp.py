@@ -1,5 +1,14 @@
-"""Banc de test du moteur FET : compare le plugin (C++) au vrai code d'Audio Lab (JS, worklet al-fet),
-puis mesure les courbes statiques (ratios 4/8/12/20/All) et les temps d'attaque / relâchement."""
+"""Banc de test du moteur FET : courbes statiques (ratios 4/8/12/20), temps d'attaque / relâchement, harmoniques.
+
+Version 2.0.0 (03/11/2026) : le plugin devient volontairement différent du code web d'Audio_Lab.html
+(décision : les plugins sont la version « pro », la page web ne change pas pour l'instant) : détection après
+l'étage de gain, suréchantillonnage, étage classe A asymétrique, mode « All » revu, relâchement recalculé à chaque
+échantillon. Retiré : la comparaison échantillon par échantillon plugin ↔ web (1) et « mêmes résultats que le web »
+selon la taille des blocs. Gardé : l'empreinte de la copie de référence du code web, l'indépendance à la taille
+des blocs (comparée au plugin lui-même), les courbes statiques (la contre-réaction reproduit exactement celles
+du web pour 4 / 8 / 12 / 20), les temps d'attaque et de relâchement, les harmoniques paires qui montent avec la
+réduction. La courbe « All » a changé (surcompression adoucie) : elle est vérifiée par tests/quality_test.cpp.
+Le banc chiffré de la version 2.0 est tests/quality_test.cpp (sans JUCE, sans Node.js)."""
 import hashlib, json, os, subprocess, sys, numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -22,13 +31,12 @@ def write_params(prm):
     pt = os.path.join(TMP, "p.txt"); open(pt, "w").write("%r %r %r %r %d" % (prm["inDb"], prm["outDb"], prm["atk"], prm["rel"], prm["ratio"]))
     return pj, pt
 
-def run_both(fs, x, prm, block=128):
+def run_core(fs, x, prm, block=128):
     inp = os.path.join(TMP, "in.f32"); x.astype(np.float32).tofile(inp)
-    pj, pt = write_params(prm)
-    oj, oc = os.path.join(TMP, "oj.f32"), os.path.join(TMP, "oc.f32")
-    subprocess.run(["node", os.path.join(HERE, "ref_run.js"), str(fs), pj, inp, oj], check=True)
+    _, pt = write_params(prm)
+    oc = os.path.join(TMP, "oc.f32")
     subprocess.run([os.path.join(HERE, "core_run"), str(fs), pt, inp, oc, str(block)], check=True)
-    return np.fromfile(oj, np.float32).reshape(-1, 2), np.fromfile(oc, np.float32).reshape(-1, 2)
+    return np.fromfile(oc, np.float32).reshape(-1, 2)
 
 def trace(fs, x, prm, block=16):
     inp = os.path.join(TMP, "in.f32"); x.astype(np.float32).tofile(inp)
@@ -56,25 +64,12 @@ print("\n0) Copie du code web utilisée comme référence")
 check(hashlib.sha256(open(os.path.join(HERE, "fet_ref.js"), "rb").read()).hexdigest() == REF_SHA,
       "fet_ref.js = classe FetDSP d'Audio_Lab.html (empreinte SHA-256)")
 
-print("\n1) Comparaison plugin (C++) ↔ Audio Lab (code web d'origine)")
-cases = [("Réglages par défaut (ratio 4, attaque/relâchement 4)", P()),
-         ("Voix (input +12, ratio 4, atk 3, rel 5)", P(inDb=12, outDb=-6, atk=3, rel=5)),
-         ("Batterie (input +18, ratio 8, atk 1, rel 7)", P(inDb=18, outDb=-8, atk=1, rel=7)),
-         ("Limiteur (ratio 20, atk 7, rel 6)", P(inDb=20, outDb=-10, atk=7, rel=6, ratio=20)),
-         ("Ratio 12", P(inDb=15, ratio=12)),
-         ("All buttons (input +24, atk 7, rel 7)", P(inDb=24, outDb=-12, atk=7, rel=7, ratio=0)),
-         ("Extrêmes (input +30, output +20, atk 1, rel 1)", P(inDb=30, outDb=20, atk=1, rel=1, ratio=0)),
-         ("Valeurs entre deux crans (atk 2,5, rel 5,7)", P(inDb=10, atk=2.5, rel=5.7, ratio=8))]
-for fs in (44100, 48000, 96000):
-    x = music(fs)
-    for name, prm in cases:
-        oj, oc = run_both(fs, x, prm)
-        d = np.max(np.abs(oj - oc)); same = np.mean(oj == oc) * 100
-        check(d <= 1e-6 * max(1, np.max(np.abs(oj))), f"{fs} Hz · {name} : écart max {d:.1e}, {same:.2f} % identiques au bit près")
+print("\n1) Indépendance à la taille des blocs envoyés par le logiciel hôte (référence : blocs de 128)")
 x = music(48000)
+ref = run_core(48000, x, P(inDb=12, outDb=-6, atk=3, rel=5))
 for b in (1, 64, 100, 512, 1024, 4096):
-    oj, oc = run_both(48000, x, cases[1][1], block=b)
-    check(np.max(np.abs(oj - oc)) <= 1e-6, f"blocs de {b} éch. (logiciel hôte) : même résultat que le web")
+    oc = run_core(48000, x, P(inDb=12, outDb=-6, atk=3, rel=5), block=b)
+    check(np.max(np.abs(oc - ref)) <= 1e-6, f"blocs de {b} éch. : même résultat qu'en blocs de 128")
 
 fs = 48000
 TABLE = {4: (4, -14, 6), 8: (8, -11, 4), 12: (12, -9, 3), 20: (20, -7, 2), 0: (20, -10, 10)}
@@ -85,8 +80,8 @@ def theory(l, ratio):
     if ratio == 0 and xg > 8: gr -= 0.25 * (xg - 8)
     return gr
 
-print("\n2) Courbes statiques (seuil fixe, ratio, knee) — niveau constant")
-for ratio in (4, 8, 12, 20, 0):
+print("\n2) Courbes statiques (seuil fixe, ratio, knee) : niveau constant, détection après l'étage de gain")
+for ratio in (4, 8, 12, 20):
     errs = []
     for lvl in range(-40, 7, 2):
         a = 10 ** (lvl / 20); x = np.full((int(fs * 3), 2), a, np.float32)
@@ -124,7 +119,7 @@ for rel in (1, 4, 7):
 print("\n5) Couleur du FET : harmoniques paires qui augmentent avec la réduction")
 def h2_ratio(prm):
     n = int(fs * 1.0); t = np.arange(n) / fs; s = (0.5 * np.sin(2 * np.pi * 1000 * t)).astype(np.float32)
-    _, y = run_both(fs, np.stack([s, s], 1), prm, 512)
+    y = run_core(fs, np.stack([s, s], 1), prm, 512)
     seg = y[int(0.5 * fs):, 0] * np.hanning(n - int(0.5 * fs))
     sp = np.abs(np.fft.rfft(seg)); f = np.fft.rfftfreq(len(seg), 1 / fs)
     a1 = sp[np.argmin(np.abs(f - 1000))]; a2 = sp[np.argmin(np.abs(f - 2000))]

@@ -9,10 +9,13 @@ static const char* helpIn   = "Input: the threshold is fixed, so pushing the inp
 static const char* helpOut  = "Output: level make-up after compression. Compare at equal loudness (bypass).";
 static const char* helpAtk  = "Attack from 800 µs (1) to 20 µs (7). Very fast: the FET catches the transients.";
 static const char* helpRel  = "Release from 1.1 s (1) to 50 ms (7), a little slower when the reduction is heavy.";
-static const char* helpRat  = "Ratio 4, 8, 12 or 20:1. \"All\": all 4 buttons pressed in, extreme ratio, distortion, pumping.";
+static const char* helpRat  = "Ratio 4, 8, 12 or 20:1. \"All\": all 4 buttons pressed in: 12 to 20:1, slower attack (transients bite), "
+                              "faster release, more distortion.";
 static const char* helpMtr  = "What the needle shows: GR = gain reduction; +8 / +4 = output level "
                               "(0 VU = −14 / −18 dBFS); OFF = needle at rest.";
 static const char* helpMix  = "Dry/Wet: blends the processed sound with the direct sound (parallel compression).";
+static const char* helpOs   = "Oversampling: the compressor runs at 2, 4 or 8 times the session rate, so fast gain changes and "
+                              "saturation don't fold back as aliasing. 4× is the default; Off = no latency, lowest CPU.";
 
 AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
     : AudioProcessorEditor (&p), proc (p),
@@ -55,20 +58,64 @@ AudioLabFETEditor::AudioLabFETEditor (AudioLabFETProcessor& p)
         bypassed = v > 0.5f; refreshState(); }, nullptr);
     bypassAtt->sendInitialUpdate();
 
-    for (auto* c : std::initializer_list<juce::Component*> { kIn.get(), kOut.get(), kAtk.get(), kRel.get(), kMix.get(), &vu, &ratioSeg, &meterSeg })
+    // Réglages avancés (2.0.0) : suréchantillonnage, latence affichée à côté
+    osSeg.onSurface = true;
+    osSeg.attach (prm (params::oversampling));
+    osSeg.setTooltip (U (helpOs));
+    advBtn.setTooltip (U ("Show / hide Oversampling"));
+    advBtn.onClick = [this] { setAdvanced (! advOpen, true); };
+    advItems = { &osSeg };
+
+    for (auto* c : std::initializer_list<juce::Component*> { kIn.get(), kOut.get(), kAtk.get(), kRel.get(), kMix.get(), &vu, &ratioSeg, &meterSeg, &advBtn })
         content.addAndMakeVisible (c);
+    for (auto* c : advItems) content.addAndMakeVisible (c);
+    proc.apvts.addParameterListener (params::oversampling, this);
     const double sc = juce::jlimit (0.6, 2.0, (double) proc.ui.getProperty ("scale", 1.0));   // lu avant les limites
+    setAdvanced ((bool) proc.ui.getProperty ("adv", false), false);   // panneau avancé caché par défaut
     setResizable (true, true);
-    getConstrainer()->setFixedAspectRatio ((double) baseW / baseH);
-    setResizeLimits (baseW * 6 / 10, baseH * 6 / 10, baseW * 2, baseH * 2);
-    setSize (juce::roundToInt (baseW * sc), juce::roundToInt (baseH * sc));
+    getConstrainer()->setFixedAspectRatio ((double) baseW / currentH());
+    setResizeLimits (baseW * 6 / 10, currentH() * 6 / 10, baseW * 2, currentH() * 2);
+    setSize (juce::roundToInt (baseW * sc), juce::roundToInt (currentH() * sc));
     refreshState();
 }
 
 AudioLabFETEditor::~AudioLabFETEditor()
 {
+    proc.apvts.removeParameterListener (params::oversampling, this);
+    cancelPendingUpdate();
     tooltips.setLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
+}
+
+void AudioLabFETEditor::parameterChanged (const juce::String&, float) { triggerAsyncUpdate(); }
+void AudioLabFETEditor::handleAsyncUpdate() { content.repaint(); }
+
+// Ouvre / ferme le panneau « Advanced settings » : la fenêtre grandit ou rétrécit de 74 px (à l'échelle)
+void AudioLabFETEditor::setAdvanced (bool open, bool resizeWindow)
+{
+    advOpen = open;
+    proc.ui.setProperty ("adv", open, nullptr);
+    advBtn.open = open; advBtn.repaint();
+    for (auto* c : advItems) c->setVisible (open);
+    if (resizeWindow)
+    {
+        const double s = (double) getWidth() / baseW;   // échelle actuelle, lue avant de changer les limites
+        getConstrainer()->setFixedAspectRatio ((double) baseW / currentH());
+        setResizeLimits (baseW * 6 / 10, currentH() * 6 / 10, baseW * 2, currentH() * 2);
+        setSize (juce::roundToInt (baseW * s), juce::roundToInt (currentH() * s));
+    }
+    resized();
+    content.repaint();
+}
+
+// « Latency 77 smp (1.6 ms) » pour le choix affiché ; « Off » : aucune latence
+juce::String AudioLabFETEditor::latencyText() const
+{
+    const int choice = osSeg.getSelected();
+    const int n = proc.latencyForChoice (choice);
+    if (n == 0) return U ("No latency");
+    const double ms = 1000.0 * n / proc.sampleRateForDisplay();
+    return "Latency " + String (n) + " smp (" + String (ms, ms < 10 ? 2 : 1) + " ms)";
 }
 
 void AudioLabFETEditor::refreshState()
@@ -81,7 +128,7 @@ void AudioLabFETEditor::resized()
 {
     const float s = (float) getWidth() / baseW;
     content.setTransform (juce::AffineTransform::scale (s));
-    content.setBounds (0, 0, baseW, baseH);
+    content.setBounds (0, 0, baseW, currentH());
     proc.ui.setProperty ("scale", (double) s, nullptr);
 }
 
@@ -100,6 +147,13 @@ void AudioLabFETEditor::Content::paint (juce::Graphics& g)
     label ("METER", 769, 24);
     g.setColour (p.text2); g.setFont (ed.theme.ui (11));
     g.drawText (U ("7 = fastest"), juce::Rectangle<float> (arX - 60, relY + 35 + 22, 120, 14), juce::Justification::centred, false);
+    if (! ed.advOpen) return;
+    // panneau des réglages avancés (« Surface », coins 12, marge intérieure 16) : une ligne de 26 px
+    g.setColour (p.surface); g.fillRoundedRectangle (24, 240, 771, 58, 12);
+    g.setColour (p.text2); g.setFont (ed.theme.ui (12));
+    g.drawText ("Oversampling", juce::Rectangle<float> (40, 256, 90, 26), juce::Justification::centredLeft, false);
+    g.setColour (p.soft);
+    g.drawText (ed.latencyText(), juce::Rectangle<float> ((float) ed.osSeg.getRight() + 16, 256, 260, 26), juce::Justification::centredLeft, false);
 }
 
 void AudioLabFETEditor::Content::resized()
@@ -117,4 +171,8 @@ void AudioLabFETEditor::Content::resized()
     // Petit Mix en bas à droite, sous Meter, aligné sur le bas du VU
     const int kw = juce::roundToInt (e.kMix->idealWidth());
     e.kMix->setBounds (795 - kw, 196, kw, 28);
+    // flèche « Advanced settings » en bas à gauche, sur la même ligne que le petit Mix
+    e.advBtn.setBounds (16, 196, juce::roundToInt (e.advBtn.idealWidth()), 28);
+    // panneau avancé (y 240 → 298) : libellé 90 px puis sélecteur
+    e.osSeg.setBounds (40 + 98, 256, juce::roundToInt (e.osSeg.idealWidth()), 26);
 }

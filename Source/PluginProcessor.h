@@ -43,12 +43,25 @@ public:
     struct Meters { float grDb = 0, outDb = -100; bool active = false; };
     Meters readMeters();
 
+    // Latence annoncée pour un choix de suréchantillonnage (affichée dans les réglages avancés)
+    int latencyForChoice (int choice) const { return constantLatency ? chain.maxLatency() : chain.latencyFor (choice); }
+    double sampleRateForDisplay() const { return getSampleRate() > 0 ? getSampleRate() : 48000.0; }
+
 private:
     audiolab::FetParams currentParams() const;
+    int osChoice() const { return juce::jlimit (0, 3, juce::roundToInt (getParam (audiolab::params::oversampling))); }
+    void applyOversampling (int choice);
 
-    audiolab::FetCore core;
+    audiolab::FetChain chain;
     juce::AudioProcessorParameter* bypassParam = nullptr;
     std::vector<float> wetL, wetR;
+    // signal sec recalé sur la latence (Dry/Wet et bypass) ; retard de complément du traité (latence fixe en AAX)
+    static constexpr int ringLen = 256;
+    std::vector<float> dryL, dryR, padL, padR;
+    int ringW = 0, latency = 0, wetPad = 0;
+    bool constantLatency = false;
+    // changement de suréchantillonnage : fondu de sortie (10 ms) → bascule → fondu d'entrée
+    float swGain = 1, swStep = 0; int swDir = 0;
     juce::SmoothedValue<float> mixSm, bypassSm;
     double msOut = 0, msCoef = 0;                   // niveau de sortie pour le VU (moyenne quadratique, 10 ms)
     std::atomic<float> outDb { -100 };

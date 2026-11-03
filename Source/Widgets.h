@@ -48,6 +48,8 @@ public:
 
     juce::String hint;                               // petite aide sous le nom (gros bouton)
     std::function<juce::String (float)> subFn;       // 2ᵉ ligne du capuchon à la place de l'unité (ex. « 50 ms »)
+    float dragPixels = 220;                          // course de souris pour toute la plage (plus grand = plus précis)
+    float wheelStep = 0.01f;                         // pas de la molette (fraction de la plage)
 
     ArcKnob (Theme& t, juce::RangedAudioParameter& prm, juce::String label, juce::String unit, Family family,
              Size size, std::function<juce::String (float)> format, float zeroValue, juce::String help = {})
@@ -172,7 +174,7 @@ public:
     void mouseDrag (const juce::MouseEvent& e) override
     {
         if (! dragging) return;
-        const float kk = e.mods.isShiftDown() ? 1200.0f : 220.0f;   // Maj = réglage fin
+        const float kk = dragPixels * (e.mods.isShiftDown() ? 5.5f : 1.0f);   // Maj = réglage fin
         setNorm (v0 + (y0 - e.position.y) / kk, true);
     }
     void mouseUp (const juce::MouseEvent&) override { if (dragging) { attachment.endGesture(); dragging = false; repaint(); } }
@@ -183,7 +185,7 @@ public:
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& w) override
     {
         if (std::abs (w.deltaY) < 1e-6f || ! isEnabled()) return;
-        setNorm (param.getValue() + (w.deltaY > 0 ? 0.01f : -0.01f), false);
+        setNorm (param.getValue() + (w.deltaY > 0 ? wheelStep : -wheelStep), false);
     }
     bool keyPressed (const juce::KeyPress& kp) override
     {
@@ -250,6 +252,9 @@ public:
     bool vertical = false;      // boutons empilés (Ratio, Meter)
     bool onSurface = false;     // posé sur une surface : bande couleur « Rails »
     float fontSize = 12, gap = 2, padX = 12;
+    // Icônes à la place du texte (facultatif) : le nom reste en bulle d'aide et pour l'accessibilité
+    using Icon = std::function<void (juce::Graphics&, juce::Rectangle<float>, juce::Colour)>;
+    std::vector<Icon> icons;
 
     // Relie à un paramètre « choix »
     void attach (juce::RangedAudioParameter& prm)
@@ -285,10 +290,18 @@ public:
                 softShadow (g, pill, juce::Colours::black.withAlpha (0.18f), 3, { 0, 1 });
                 g.setColour (p.tealSel); g.fillPath (pill);
             }
-            g.setColour (sel || (i == hover && isEnabled()) ? p.text : p.text2);
+            const auto c = sel || (i == hover && isEnabled()) ? p.text : p.text2;
+            if ((size_t) i < icons.size() && icons[(size_t) i]) { icons[(size_t) i] (g, r, c); continue; }
+            g.setColour (c);
             g.setFont (theme.ui (fontSize, sel ? 500 : 400));
             g.drawText (options[i], r, juce::Justification::centred, false);
         }
+    }
+    // avec des icônes, la bulle d'aide donne le nom du segment survolé
+    juce::String getTooltip() override
+    {
+        if (! icons.empty() && hover >= 0 && hover < options.size()) return options[hover];
+        return SettableTooltipClient::getTooltip();
     }
     void mouseMove (const juce::MouseEvent& e) override { const int h = hit (e.position); if (h != hover) { hover = h; repaint(); } }
     void mouseExit (const juce::MouseEvent&) override { hover = -1; repaint(); }
@@ -321,6 +334,189 @@ private:
     std::unique_ptr<juce::ParameterAttachment> attachment;
 };
 
+// ── Curseur (charte § 7) : libellé 68 px · piste · valeur 48 px ──────────
+// Piste 4 px « Rails », partie avant le bouton remplie de la couleur de la famille (halo léger),
+// bouton 18 px « Capuchon » ; rien de coloré à la valeur minimale ; désactivé : piste en gris doux.
+class SliderRow : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    SliderRow (Theme& t, juce::RangedAudioParameter& prm, juce::String label, Family family, std::function<juce::String (float)> format)
+        : theme (t), param (prm), labelText (std::move (label)), fam (family), fmt (std::move (format)),
+          attachment (prm, [this] (float) { repaint(); }, nullptr)
+    {
+        setWantsKeyboardFocus (true);
+        setTitle (labelText);
+        attachment.sendInitialUpdate();
+    }
+    void setDimmed (bool d) { if (dimmed != d) { dimmed = d; repaint(); } }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto& p = theme.pal();
+        const float h = (float) getHeight(), cy = h * 0.5f;
+        g.setColour (dimmed ? p.soft : p.text2); g.setFont (theme.ui (12));
+        g.drawText (labelText, juce::Rectangle<float> (0, 0, 68, h), juce::Justification::centredLeft, false);
+        auto tr = track();
+        g.setColour (hover && ! dimmed ? p.railHi : p.rail); g.fillRoundedRectangle (tr.getX(), cy - 2, tr.getWidth(), 4, 2);
+        const float n = param.getValue();
+        const float x = tr.getX() + 9 + (tr.getWidth() - 18) * n;
+        if (n > 0.001f)
+        {
+            // partie avant le bouton : teal en dégradé, orange plein, teal secondaire plein (posé sur une surface)
+            const juce::Rectangle<float> f (tr.getX(), cy - 2, x - tr.getX(), 4);
+            juce::FillType ft;
+            if (dimmed) ft = juce::FillType (p.soft);
+            else if (fam == Family::teal) ft = juce::FillType (juce::ColourGradient (p.teal, f.getX(), 0, p.teal2, f.getRight(), 0, false));
+            else ft = juce::FillType (fam == Family::orange ? p.orange : p.teal2);
+            if (! dimmed)
+            {
+                const auto glow = fam == Family::orange ? p.orange : p.teal2;
+                g.setColour (glow.withAlpha (0.05f)); g.fillRoundedRectangle (f.expanded (1.6f), 3.6f);   // halo fin et discret
+                g.setColour (glow.withAlpha (0.12f)); g.fillRoundedRectangle (f.expanded (0.8f), 2.8f);
+            }
+            g.setFillType (ft); g.fillRoundedRectangle (f, 2);
+        }
+        juce::Path th; th.addEllipse (x - 9, cy - 9, 18, 18);
+        softShadow (g, th, juce::Colours::black.withAlpha (0.5f), 6, { 0, 2 });
+        {
+            juce::Graphics::ScopedSaveState s (g);
+            g.reduceClipRegion (th);
+            g.setColour (juce::Colours::white.withAlpha (0.08f)); g.fillPath (th);
+            g.setColour (p.cap); g.fillEllipse (x - 9, cy - 8, 18, 18);
+        }
+        g.setColour (juce::Colours::black.withAlpha (0.4f)); g.strokePath (th, juce::PathStrokeType (0.5f));
+        if (focused) { g.setColour (p.teal2.withAlpha (0.5f)); g.drawEllipse (x - 10.5f, cy - 10.5f, 21, 21, 1.5f); }
+        g.setColour (dimmed ? p.soft : p.text);
+        drawTabular (g, theme, fmt (param.convertFrom0to1 (n)), 12, 400,
+                     juce::Rectangle<float> ((float) getWidth() - 48, 0, 48, h), juce::Justification::right);
+    }
+    void mouseEnter (const juce::MouseEvent&) override { hover = true; repaint(); }
+    void mouseExit (const juce::MouseEvent&) override { hover = false; repaint(); }
+    void mouseDown (const juce::MouseEvent& e) override { attachment.beginGesture(); drag (e); }
+    void mouseDrag (const juce::MouseEvent& e) override { drag (e); }
+    void mouseUp (const juce::MouseEvent&) override { attachment.endGesture(); }
+    void mouseDoubleClick (const juce::MouseEvent&) override { attachment.setValueAsCompleteGesture (param.convertFrom0to1 (param.getDefaultValue())); }
+    bool keyPressed (const juce::KeyPress& k) override
+    {
+        const auto& rg = param.getNormalisableRange();
+        const float st = rg.interval > 0 ? rg.interval / (rg.end - rg.start) : 0.01f;
+        float n = param.getValue();
+        if (k.isKeyCode (juce::KeyPress::rightKey) || k.isKeyCode (juce::KeyPress::upKey)) n += std::max (st, 0.001f);
+        else if (k.isKeyCode (juce::KeyPress::leftKey) || k.isKeyCode (juce::KeyPress::downKey)) n -= std::max (st, 0.001f);
+        else return false;
+        attachment.setValueAsCompleteGesture (param.convertFrom0to1 (juce::jlimit (0.0f, 1.0f, n)));
+        return true;
+    }
+    void focusGained (FocusChangeType c) override { focused = c == focusChangedByTabKey; repaint(); }
+    void focusLost (FocusChangeType) override { focused = false; repaint(); }
+
+private:
+    juce::Rectangle<float> track() const { return { 78.0f, 0, (float) getWidth() - 78 - 58, (float) getHeight() }; }
+    void drag (const juce::MouseEvent& e)
+    {
+        auto tr = track();
+        const float n = juce::jlimit (0.0f, 1.0f, (e.position.x - tr.getX() - 9) / (tr.getWidth() - 18));
+        attachment.setValueAsPartOfGesture (param.convertFrom0to1 (n));
+    }
+    Theme& theme;
+    juce::RangedAudioParameter& param;
+    juce::String labelText;
+    Family fam;
+    std::function<juce::String (float)> fmt;
+    juce::ParameterAttachment attachment;
+    bool dimmed = false, focused = false, hover = false;
+};
+
+// ── Bouton à icône (ex. « Écouter ») : fond « Capuchon », actif = #005F73 ──
+class PillButton : public juce::Button
+{
+public:
+    PillButton (Theme& t, juce::String label) : juce::Button (label), theme (t) {}
+    bool on = false;
+    std::function<void (juce::Graphics&, juce::Rectangle<float>, juce::Colour)> icon;
+
+    void paintButton (juce::Graphics& g, bool over, bool down) override
+    {
+        const auto& p = theme.pal();
+        auto b = getLocalBounds().toFloat();
+        g.setColour (on ? p.tealSel : (over || down) ? p.railHi : p.cap); g.fillRoundedRectangle (b, 8);
+        g.setFont (theme.ui (12, on ? 500 : 400));
+        const auto txt = getButtonText();
+        const float tw = textWidth (g.getCurrentFont(), txt);
+        const float x0 = b.getCentreX() - ((icon ? 13 + 6 : 0) + tw) / 2;
+        if (icon) icon (g, juce::Rectangle<float> (x0, b.getY(), 13, b.getHeight()), p.text);
+        g.setColour (p.text);
+        g.drawText (txt, juce::Rectangle<float> (x0 + (icon ? 19 : 0), b.getY(), tw + 4, b.getHeight()), juce::Justification::centredLeft, false);
+    }
+    float idealWidth() const { return textWidth (theme.ui (12, 500), getButtonText()) + 20 + (icon ? 19 : 0); }
+
+private:
+    Theme& theme;
+};
+
+// ── Flèche d'ouverture (« Réglages avancés ») : fermé = texte secondaire, ouvert = texte ──
+class Disclosure : public juce::Button
+{
+public:
+    Disclosure (Theme& t, juce::String label) : juce::Button (label), theme (t) {}
+    bool open = false;
+
+    void paintButton (juce::Graphics& g, bool over, bool) override
+    {
+        const auto& p = theme.pal();
+        const juce::Colour c = open || over ? p.text : p.text2;
+        const float x = 8, y = getHeight() * 0.5f - 6;   // boîte 12 × 12 du chevron
+        juce::Path ch;
+        if (open) { ch.startNewSubPath (x + 2.5f, y + 4.5f); ch.lineTo (x + 6, y + 8); ch.lineTo (x + 9.5f, y + 4.5f); }
+        else      { ch.startNewSubPath (x + 4.5f, y + 2.5f); ch.lineTo (x + 8, y + 6); ch.lineTo (x + 4.5f, y + 9.5f); }
+        g.setColour (c);
+        g.strokePath (ch, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setFont (theme.ui (12));
+        g.drawText (getButtonText(), juce::Rectangle<float> (26, 0, (float) getWidth() - 26, (float) getHeight()), juce::Justification::centredLeft, false);
+    }
+    float idealWidth() const { return 26 + textWidth (theme.ui (12), getButtonText()) + 8; }
+
+private:
+    Theme& theme;
+};
+
+// ── Message bref (toast) ─────────────────────────────────────────────────
+class Toast : public juce::Component, private juce::Timer
+{
+public:
+    explicit Toast (Theme& t) : theme (t) { setInterceptsMouseClicks (false, false); setAlpha (0); }
+    void show (const juce::String& s, bool ok = false)
+    {
+        text = s; good = ok; shownAt = juce::Time::getMillisecondCounter();
+        setAlpha (1); setVisible (true); toFront (false); repaint(); startTimerHz (30);
+    }
+    void paint (juce::Graphics& g) override
+    {
+        if (text.isEmpty()) return;
+        const auto& p = theme.pal();
+        const float w = textWidth (theme.ui (13, 600), text) + 36, h = 34;
+        auto r = juce::Rectangle<float> ((getWidth() - w) / 2, (float) getHeight() - h - 14, w, h);
+        juce::Path box; box.addRoundedRectangle (r, 10);
+        softShadow (g, box, juce::Colours::black.withAlpha (0.4f), 18, { 0, 6 });
+        g.setColour (p.surface); g.fillPath (box);
+        g.setColour (p.rail); g.strokePath (box, juce::PathStrokeType (1));
+        g.setColour (good ? p.teal2 : p.text); g.setFont (theme.ui (13, 600));
+        g.drawText (text, r, juce::Justification::centred, false);
+    }
+
+private:
+    void timerCallback() override
+    {
+        const auto el = juce::Time::getMillisecondCounter() - shownAt;
+        if (el > 2200) { setAlpha (0); stopTimer(); text.clear(); return; }
+        setAlpha (el > 1800 ? 1.0f - (el - 1800) / 400.0f : 1.0f);
+    }
+    Theme& theme;
+    juce::String text;
+    bool good = false;
+    juce::uint32 shownAt = 0;
+};
+
 // ── Bulles d'aide et menus ───────────────────────────────────────────────
 class ALLookAndFeel : public juce::LookAndFeel_V4
 {
@@ -335,6 +531,32 @@ public:
         setColour (juce::TooltipWindow::backgroundColourId, p.surface);
         setColour (juce::TooltipWindow::textColourId, p.text);
         setColour (juce::TooltipWindow::outlineColourId, p.rail);
+        setColour (juce::ComboBox::textColourId, p.text);
+    }
+    // Menu déroulant (ex. Side-chain) : fond « Capuchon », coins 8, chevron en texte secondaire
+    void drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox& box) override
+    {
+        const auto& p = theme.pal();
+        auto b = juce::Rectangle<float> (0, 0, (float) w, (float) h);
+        g.setColour (box.isMouseOver (true) ? p.railHi : p.cap); g.fillRoundedRectangle (b, 8);
+        if (box.hasKeyboardFocus (true)) { g.setColour (p.teal2.withAlpha (0.5f)); g.drawRoundedRectangle (b.reduced (1), 8, 1.5f); }
+        juce::Path chev; const float cx = (float) w - 13, cy = h * 0.5f;
+        chev.startNewSubPath (cx - 3, cy - 1.5f); chev.lineTo (cx, cy + 1.5f); chev.lineTo (cx + 3, cy - 1.5f);
+        g.setColour (p.text2); g.strokePath (chev, juce::PathStrokeType (1.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    juce::Font getComboBoxFont (juce::ComboBox&) override { return theme.ui (12); }
+    void positionComboBoxText (juce::ComboBox& box, juce::Label& label) override
+    {
+        label.setBorderSize ({ 0, 0, 0, 0 });
+        label.setBounds (10, 0, box.getWidth() - 26, box.getHeight());
+        label.setFont (getComboBoxFont (box));
+    }
+    juce::Font getPopupMenuFont() override { return theme.ui (13); }
+    void drawPopupMenuBackground (juce::Graphics& g, int w, int h) override
+    {
+        const auto& p = theme.pal();
+        g.fillAll (p.surface);
+        g.setColour (p.rail); g.drawRect (0, 0, w, h);
     }
     void drawTooltip (juce::Graphics& g, const juce::String& tip, int w, int h) override
     {

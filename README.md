@@ -2,9 +2,9 @@
 
 Le compresseur FET d'**Audio Lab** (« Chimiste du son », Transversal Studio), de type 1176, en plugin **VST3 / AU** pour Logic Pro, Ableton Live, FL Studio, Cubase, Reaper, Studio One, Bitwig…, et **AAX** pour Pro Tools (version de test non signée, voir plus bas).
 
-- **Même son que l'outil web** : le moteur est un portage ligne à ligne du processeur `al-fet` d'`Audio_Lab.html`. Le banc de test compare les deux versions : sortie identique (écart < 10⁻⁶) à 44,1 / 48 / 96 kHz, quelle que soit la taille des blocs du logiciel.
+- **Version 2.0.0, qualité « pro »** : moteur d'abord porté du processeur `al-fet` d'`Audio_Lab.html`, puis amélioré pour le plugin (la page web ne change pas) : détection après l'étage de gain (contre-réaction, comme le 1176), suréchantillonnage ×2 / ×4 / ×8 (défaut ×4 : repliement −99 dB au lieu de −40 dB), étage classe A calibré (0 VU = −18 dBFS, THD 0,2 %), mode « All » revu. Détails et mesures : `docs/09_GUI_Plugins_Opto_FET.md` § 7.
 - **Réglages de l'original** : Input (seuil fixe : on compresse en poussant l'entrée), Output, Attack 800 µs → 20 µs et Release 1,1 s → 50 ms (positions 1 à 7, 7 = le plus rapide), Ratio 4 / 8 / 12 / 20 et « All » (les quatre boutons enfoncés). Distorsion paire du FET, ampli classe A, transfo.
-- **Interface Audio Lab** : potentiomètres à arc, VU-mètre à aiguille (GR / +8 / +4 / OFF), petit Dry/Wet, thème sombre de la charte Transversal, fenêtre redimensionnable, info-bulles en français.
+- **Interface Audio Lab** : potentiomètres à arc, VU-mètre à aiguille (GR / +8 / +4 / OFF), petit Dry/Wet, thème sombre de la charte Transversal, fenêtre redimensionnable, info-bulles en anglais.
 
 Plan détaillé de l'interface et du moteur : `docs/09_GUI_Plugins_Opto_FET.md`.
 
@@ -19,7 +19,7 @@ Mode d'emploi : fichier `LISEZ-MOI.txt` dans chaque archive.
 
 ### Pro Tools (AAX)
 
-Chaque archive contient aussi `Audio Lab FET.aaxplugin` (Mac universel, Windows 64 bits), fabriqué avec le SDK AAX fourni par JUCE (GPL v3). Il n'est **pas encore signé** par PACE : il ne se charge que dans **Pro Tools Developer**. Aucune latence : rien de particulier à régler dans Pro Tools.
+Chaque archive contient aussi `Audio Lab FET.aaxplugin` (Mac universel, Windows 64 bits), fabriqué avec le SDK AAX fourni par JUCE (GPL v3). Il n'est **pas encore signé** par PACE : il ne se charge que dans **Pro Tools Developer**. Dans Pro Tools, la latence est fixe (celle du suréchantillonnage ×8, 79 échantillons), quel que soit le réglage Oversampling : Pro Tools la compense automatiquement.
 
 ## Fabrication
 
@@ -36,7 +36,8 @@ Tests (Linux ou Mac) :
 cmake -B build -DALF_TESTS=ON -DALF_STANDALONE=ON
 cmake --build build --target ALFProcessorTest ALFRenderUI
 g++ -O2 -std=c++17 -ISource tests/core_run.cpp -o tests/core_run
-python3 tests/verify_dsp.py     # moteur C++ ↔ code web d'Audio Lab (Node.js requis)
+python3 tests/verify_dsp.py     # courbes statiques, temps, indépendance aux blocs
+g++ -O2 -std=c++17 -I Source tests/quality_test.cpp -o qt && ./qt   # banc qualité 2.0 (sans JUCE)
 ```
 
 ## Licence

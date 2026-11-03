@@ -12,6 +12,9 @@ inline constexpr const char* release = "release";
 inline constexpr const char* ratio   = "ratio";
 inline constexpr const char* mix     = "mix";
 inline constexpr const char* bypass  = "bypass";
+// 2.0.0 (réglages avancés)
+inline constexpr const char* oversampling = "oversampling";
+inline constexpr int oversamplingDefault = 2;   // 4× : repliement < −80 dB à tous les ratios et toutes les attaques
 
 // Boutons de ratio, de haut en bas comme sur Audio Lab ; « All » = les 4 boutons enfoncés (0 pour le moteur)
 inline constexpr int ratioValues[5] = { 20, 12, 8, 4, 0 };
@@ -50,6 +53,9 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     fl (mix, "Dry/Wet", NormalisableRange<float> (0, 100, 0.1f), 100, "%",
         [] (float v, int) { return String (roundToInt (v)) + " %"; });
     l.add (std::make_unique<AudioParameterBool> (ParameterID { bypass, 1 }, "Bypass", false));
+    // 2.0.0 : suréchantillonnage du moteur (Off = aucune latence)
+    l.add (std::make_unique<AudioParameterChoice> (ParameterID { oversampling, 2 }, "Oversampling",
+        StringArray { "Off", String::fromUTF8 ("2×"), String::fromUTF8 ("4×"), String::fromUTF8 ("8×") }, oversamplingDefault));
     return l;
 }
 } // namespace audiolab::params

@@ -61,7 +61,10 @@ int main (int argc, char** argv)
     steps.push_back ({ 800,  [&] { shot ("05_bypass"); set (params::bypass, 0); meter (1); rebuild();
                                    ed->setSize (AudioLabFETEditor::baseW * 6 / 10, AudioLabFETEditor::baseH * 6 / 10); } });
     steps.push_back ({ 1000, [&] { shot ("06_60pc_plus4"); ed->setSize (AudioLabFETEditor::baseW * 2, AudioLabFETEditor::baseH * 2); } });
-    steps.push_back ({ 1000, [&] { shot ("07_200pc"); juce::MessageManager::getInstance()->stopDispatchLoop(); } });
+    steps.push_back ({ 1000, [&] { shot ("07_200pc"); proc->ui.setProperty ("adv", true, nullptr); proc->ui.setProperty ("scale", 1.0, nullptr); rebuild(); } });
+    steps.push_back ({ 1000, [&] { shot ("08_advanced"); ed->setSize (AudioLabFETEditor::baseW * 6 / 10, AudioLabFETEditor::baseHOpen * 6 / 10); } });
+    steps.push_back ({ 800,  [&] { shot ("09_advanced_60pc"); set (params::oversampling, 0); ed->setSize (AudioLabFETEditor::baseW * 2, AudioLabFETEditor::baseHOpen * 2); } });
+    steps.push_back ({ 1000, [&] { shot ("10_advanced_200pc_off"); proc->ui.setProperty ("adv", false, nullptr); juce::MessageManager::getInstance()->stopDispatchLoop(); } });
 
     std::function<void (size_t)> next = [&] (size_t i)
     {
