@@ -57,6 +57,7 @@ public:
         reset();
         setParams (p);
         gIn = gInT; gOut = gOutT; allMix = allT;
+        thr = thrT; knee = kneeT; s = sT; updateLaw();
     }
 
     void reset()
@@ -75,21 +76,19 @@ public:
         const bool all = p.ratio == 0;
         allT = all ? 1.0 : 0.0;
         // Ratio / seuil fixe / genou : seuil plus haut pour les ratios élevés (comportement de l'original)
+        double Rt;
         switch (p.ratio)
         {
-            case 8:  R = 8;  thr = -11; knee = 4;  break;
-            case 12: R = 12; thr = -9;  knee = 3;  break;
-            case 20: R = 20; thr = -7;  knee = 2;  break;
-            case 0:  R = 20; thr = -10; knee = 10; break;   // All : 12 à 20:1 sur un genou large
-            default: R = 4;  thr = -14; knee = 6;  break;
+            case 8:  Rt = 8;  thrT = -11; kneeT = 4;  break;
+            case 12: Rt = 12; thrT = -9;  kneeT = 3;  break;
+            case 20: Rt = 20; thrT = -7;  kneeT = 2;  break;
+            case 0:  Rt = 20; thrT = -10; kneeT = 10; break;   // All : 12 à 20:1 sur un genou large
+            default: Rt = 4;  thrT = -14; kneeT = 6;  break;
         }
-        s = 1 / R - 1; h = knee / 2;
+        sT = 1 / Rt - 1;
         const double ta = attackSeconds (p.atk) * (all ? allAtkMul : 1.0);
-        // Boucle de contre-réaction : au-dessus du seuil, elle accélère l'attaque d'un facteur R.
-        // On compense pour que le temps d'attaque mesuré reste celui affiché, quel que soit le ratio.
-        const double m = std::exp (-1 / (ta * srHi));
-        aA = m * R / (1 + m * (R - 1));
-        aOvA = m;
+        mAtk = std::exp (-1 / (ta * srHi));
+        aOvA = mAtk;
         tRel = releaseSeconds (p.rel) * (all ? allRelMul : 1.0);
         relK = 1 / (tRel * srHi);
         gInT = std::pow (10.0, p.inDb / 20); gOutT = std::pow (10.0, p.outDb / 20);
@@ -106,6 +105,7 @@ public:
     static double staticGR (double l, int ratio)
     {
         FetCore c; FetParams q; q.ratio = ratio; c.setParams (q);
+        c.thr = c.thrT; c.knee = c.kneeT; c.s = c.sT; c.updateLaw();
         return c.ffCurve (l) + (ratio == 0 ? c.overCurve (l) : 0.0);
     }
 
@@ -118,6 +118,13 @@ public:
         {
             gIn += (gInT - gIn) * (1 - smHi);
             allMix += (allT - allMix) * (1 - smHi);
+            // changement de ratio : seuil, genou et pente glissent sur 20 ms (aucun saut de la loi de gain)
+            if (std::abs (thr - thrT) + std::abs (knee - kneeT) + std::abs (s - sT) > 1e-9)
+            {
+                thr += (thrT - thr) * (1 - smHi); knee += (kneeT - knee) * (1 - smHi); s += (sT - s) * (1 - smHi);
+                updateLaw();
+            }
+            else if (std::abs (mAtk - mAtkUsed) > 0) updateLaw();
             double xl, xr, a, aS;
             bool interior = false;
             if (dly == 0)
@@ -195,6 +202,15 @@ public:
     float takePeak()  { return pkShared.exchange (0.0f); }
 
 private:
+    // Boucle de contre-réaction : au-dessus du seuil, elle accélère l'attaque d'un facteur R.
+    // On compense pour que le temps d'attaque mesuré reste celui affiché, quel que soit le ratio.
+    void updateLaw()
+    {
+        h = knee / 2;
+        const double R = 1 / (1 + s);
+        mAtkUsed = mAtk;
+        aA = mAtk * R / (1 + mAtk * (R - 1));
+    }
     // courbe « directe » d'origine (genou quadratique)
     double ffCurve (double x) const
     {
@@ -271,8 +287,8 @@ private:
     double gIn = 1, gOut = 1, gInT = 1, gOutT = 1, allMix = 0, allT = 0;
     double hpLx1 = 0, hpLy1 = 0, hpRx1 = 0, hpRy1 = 0, hpB0 = 1, hpA1 = 0;
     double smHi = 0, smBase = 0;
-    double aA = 0, aOvA = 0, tRel = 0.2, relK = 1e-4;
-    double R = 4, thr = -14, knee = 6, s = -0.75, h = 3;
+    double aA = 0, aOvA = 0, mAtk = 0, mAtkUsed = -1, tRel = 0.2, relK = 1e-4;
+    double thr = -14, knee = 6, s = -0.75, h = 3, thrT = -14, kneeT = 6, sT = -0.75;
     std::atomic<float> grMinShared { 0 }, pkShared { 0 };
 };
 

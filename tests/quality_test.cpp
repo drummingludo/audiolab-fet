@@ -229,6 +229,26 @@ int main (int argc, char** argv)
         check (flips == 0 && worstOver < 1e-6 && db (sub / a[2]) < -120, m);
     }
 
+    std::puts ("\n4b) Réglages sans clic : changements de ratio et de temps pendant un sinus 200 Hz compressé");
+    {
+        FetChain c; c.prepare (48000, 2); c.setParams (P (12, 4)); c.engine().prepare (48000, 4);
+        auto s = sine (48000, 200, -6, 48000 * 3); std::vector<float> yl (s.size()), yr (s.size());
+        // pente maximale rapportée à la crête de chaque bloc de 10 ms : un sinus pur donne 2π·200/48000 = 0,026 ; un clic bien plus
+        float worst = 0, prev = 0;
+        for (size_t off = 0; off < s.size(); off += 480)
+        {
+            if (off == 48000) c.setParams (P (12, 20, 7, 7));
+            if (off == 72000) c.setParams (P (12, 0, 1, 1));
+            if (off == 96000) c.setParams (P (12, 4, 4, 4));
+            c.process (s.data() + off, s.data() + off, yl.data() + off, yr.data() + off, 480);
+            float d = 0, pk = 1e-9f;
+            for (size_t i = off; i < off + 480; ++i) { d = std::max (d, std::abs (yl[i] - prev)); prev = yl[i]; pk = std::max (pk, std::abs (yl[i])); }
+            if (off >= 24000) worst = std::max (worst, d / pk);
+        }
+        std::snprintf (m, sizeof m, "ratio 4 → 20 (attaque 7) → All (attaque 1) → 4 : pente max / crête %.4f (sinus pur : 0.0262 ; 1.2, ratio changé d'un coup : 0.0328)", worst);
+        check (worst < 0.032f, m);
+    }
+
     std::puts ("\n5) Distorsion selon le niveau (1 kHz, 48 kHz, réglages par défaut : Input 0, ratio 4, attaque 4, relâchement 4, 4x)");
     {
         std::puts ("       niveau     THD      H2      H3   réduction");

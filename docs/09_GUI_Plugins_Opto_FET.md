@@ -90,7 +90,7 @@ La latence est annoncée au logiciel ; le son direct du Dry/Wet et du bypass est
 2. **Détection après l'étage de gain** (contre-réaction, comme le 1176). La boucle est résolue exactement à chaque échantillon (pas de retard d'un échantillon dans la boucle) : stable à tous les réglages. Sa loi est déduite de la courbe d'origine : les ratios statiques restent exacts. La boucle accélère l'attaque d'un facteur égal au ratio : c'est compensé, le temps affiché reste vrai à tous les ratios.
 3. **Calibration 0 VU = −18 dBFS** : l'ampli de sortie classe A est asymétrique (H2 + H3, au lieu de H3 seule) ; distorsion faible au niveau nominal, qui monte vers 0 dBFS.
 4. **Mode « All »** plus fidèle au manuel de l'original (« ratio entre 12:1 et 20:1 », temps modifiés, distorsion due au retard de l'attaque sur les transitoires) : 20:1 sur un genou de 10 dB à partir de −10 dBFS (donc 12 à 20:1 selon le niveau), attaque deux fois plus lente (avant : deux fois plus rapide), retour 0,7 fois plus court (pompage), surcompression adoucie au-delà de +8 dB, distorsion paire plus forte qu'aux autres ratios mais bornée.
-5. Relâchement dépendant du programme recalculé à chaque échantillon (avant : par paliers de 128 échantillons) ; coupe-bas 18 Hz du transfo en bilinéaire pré-déformée : même réponse à 44,1 / 48 / 96 / 192 kHz (écart < 0,001 dB).
+5. Changer de ratio pendant la compression ne fait plus de saut : seuil, genou et pente glissent sur 20 ms (pente maximale rapportée à la crête, sinus 200 Hz : 0,028 contre 0,033 en 1.2, 0,026 pour le sinus seul). Relâchement dépendant du programme recalculé à chaque échantillon (avant : par paliers de 128 échantillons) ; coupe-bas 18 Hz du transfo en bilinéaire pré-déformée : même réponse à 44,1 / 48 / 96 / 192 kHz (écart < 0,001 dB).
 
 **Mesures avant (1.2) / après (2.0, défaut 4×)**
 
@@ -159,7 +159,7 @@ La latence est annoncée au logiciel ; le son direct du Dry/Wet et du bypass est
 | −6 dBFS | 7,8 % | 1,16 % | 0,86 / 0,78 % |
 | −3 dBFS | 12,8 % | 1,92 % | 1,17 / 1,51 % |
 
-**Interface** : la rangée du bas étant pleine (VU, Compress / Limit, Mix), la flèche « Advanced settings » est en haut à gauche, au-dessus de Gain (8, 20) ; panneau « Surface » (24, 284, 526 × 92, coins 12) : ligne 1 « Oversampling », sélecteur et latence ; ligne 2 curseur « SC Emphasis » (teal secondaire, 300 px). Fenêtre 574 × 292 replié, 574 × 400 déplié.
+**Interface** : la rangée du bas étant pleine (VU, Compress / Limit, Mix), la flèche « Advanced settings » est en haut à gauche, au-dessus de Gain (0, 20 : chevron à 8 px du bord, 14 px avant le VU) ; panneau « Surface » (24, 284, 526 × 92, coins 12) : ligne 1 « Oversampling », sélecteur et latence ; ligne 2 « SC Emphasis », curseur teal secondaire (piste de 210 px) ; les deux commandes commencent en x 138. Fenêtre 574 × 292 replié, 574 × 400 déplié.
 
 ### 7.3 Vérifications
 

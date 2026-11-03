@@ -11,6 +11,7 @@ AudioLabFETProcessor::AudioLabFETProcessor()
       ui ("ui")
 {
     bypassParam = apvts.getParameter (params::bypass);
+    chain.prepare (48000, osChoice());   // suréchantillonneurs conçus d'avance : latence juste même avant prepareToPlay
     ui.setProperty ("meter", 0, nullptr);
     ui.setProperty ("scale", 1.0, nullptr);
 }
